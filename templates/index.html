@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>River  Wise Drains Status</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:Arial, Helvetica, sans-serif;
+    background:#f5f5f5;
+}
+
+/* =========================
+   TOP SECTION
+========================= */
+
+.top-section{
+    text-align:center;
+    padding:20px;
+    background:white;
+}
+
+.top-section h2{
+    color:#444;
+    font-size:32px;
+    margin-bottom:10px;
+}
+
+.filters{
+    margin-top:10px;
+}
+
+.filters select{
+
+    width:220px;
+    padding:8px;
+
+    background:#efd1b2;
+
+    border:1px solid #ccc;
+
+    border-radius:4px;
+
+    margin:0 5px;
+}
+
+.last-update{
+
+    margin-top:25px;
+
+    color:green;
+
+    font-size:18px;
+
+    font-weight:bold;
+}
+
+/* =========================
+   TABLE
+========================= */
+
+.table-container{
+
+    margin:10px;
+
+    overflow:auto;
+
+    background:white;
+}
+
+table{
+
+    width:100%;
+
+    border-collapse:collapse;
+}
+
+th,td{
+
+    border:1px solid #bdbdbd;
+
+    text-align:center;
+
+    padding:8px;
+}
+
+thead th{
+
+    color:white;
+
+    font-size:14px;
+}
+
+td{
+
+    font-size:13px;
+}
+
+/* COLORS */
+
+.header-main{
+    background:#c9965a;
+}
+
+.header-total{
+    background:cadetblue;
+}
+
+.header-tapped{
+    background:#7cab46;
+}
+
+.header-untapped{
+    background:#e05543;
+}
+
+.header-partial{
+    background:#d8b461;
+}
+
+.header-not{
+    background:#73a4d6;
+}
+
+/* STATE TOTAL */
+
+.state-total{
+    background:#f3df67;
+    font-weight:bold;
+}
+
+.state-total td:first-child{
+    background:#cfe4cf;
+}
+
+tbody tr:nth-child(even){
+    background:#fafafa;
+}
+
+.updated_data{
+    background-color: #5cb85c;
+    border: none;
+    padding: 5px 12px;
+    color: #fff;
+    border-radius: 4px;
+    margin: 0 7px;
+
+
+}
+.fetch_data{
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-right: 3rem;
+
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- =========================
+     HEADER
+========================= -->
+
+<div class="top-section">
+
+    <h2>
+    River Wise Drains Status
+</h2>
+    <div class="fetch_data" >
+        <button class="updated_data"
+                onclick="fetchUpdatedData()">Fetch Updated Data</button>
+    </div>
+    <div class="filters">
+
+        <select id="districtFilter"
+        onchange="districtChanged()">
+
+            <option value="">
+                --All District--
+            </option>
+
+        </select>
+
+        <select id="riverFilter"
+        onchange="filterTable()">
+
+            <option value="">
+                --All River--
+            </option>
+
+        </select>
+
+    </div>
+
+    <div class="last-update">
+
+        Last Update Date :
+        <span id="lastUpdate">
+            Loading...
+        </span>
+
+    </div>
+
+</div>
+
+<!-- =========================
+     TABLE
+========================= -->
+
+<div class="table-container">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th rowspan="2" class="header-main">
+Sr.No.
+</th>
+<th rowspan="2" class="header-main">
+River
+</th>
+
+<th rowspan="2" class="header-main">
+District
+</th>
+
+<th rowspan="2" class="header-total">
+Total Drains
+</th>
+
+<th rowspan="2" class="header-total">
+Total Discharge(MLD)
+</th>
+
+<th colspan="2" class="header-tapped">
+Tapped Drains
+</th>
+
+<th colspan="2" class="header-untapped">
+Untapped Drains
+</th>
+
+<th colspan="2" class="header-partial">
+Partial Tapped
+</th>
+
+<th colspan="2" class="header-not">
+Not to be Tapped
+</th>
+
+
+
+</tr>
+
+<tr>
+
+<th class="header-tapped">Drains</th>
+<th class="header-tapped">Discharge (MLD)</th>
+
+<th class="header-untapped">Drains</th>
+<th class="header-untapped">Discharge (MLD)</th>
+
+<th class="header-partial">Drains</th>
+<th class="header-partial">Total Discharge (MLD)</th>
+
+<th class="header-not">Drains</th>
+<th class="header-not">Discharge (MLD)</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+
+
+</tbody>
+
+<tbody id="tableBody">
+
+</tbody>
+
+</table>
+
+</div>
+
+<script>
+
+let globalData=[];
+
+/* =========================
+   LOAD DATA
+========================= */
+
+async function loadData(){
+
+    const response =
+    await fetch("/api/current");
+
+    const data = await response.json();
+
+     // console.log(data);      // pura data
+    console.log(data[0]);   // first row
+
+    globalData=data;
+
+    populateFilters(data);
+
+    renderTable(data);
+
+    if(data.length){
+
+        document
+        .getElementById("lastUpdate")
+        .innerHTML =
+        formatDate(data[0].scrape_time);
+    }
+}
+
+/* =========================
+   DATE FORMAT
+========================= */
+
+function formatDate(dt){
+
+    const d = new Date(dt);
+
+    return `${d.getDate()}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}
+    ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+}
+
+/* =========================
+   FILTERS
+========================= */
+
+function populateFilters(data){
+
+    let districts=[
+        ...new Set(
+            data.map(
+                x=>x.district_name
+            )
+        )
+    ];
+
+    let rivers=[
+        ...new Set(
+            data.map(
+                x=>x.river_name
+            )
+        )
+    ];
+
+    let d=document
+    .getElementById(
+        "districtFilter"
+    );
+
+    let r=document
+    .getElementById(
+        "riverFilter"
+    );
+
+    d.innerHTML=
+    '<option value="">--All District--</option>';
+
+    r.innerHTML=
+    '<option value="">--All River--</option>';
+
+    districts.forEach(x=>{
+
+        d.innerHTML+=
+        `<option value="${x}">
+        ${x}
+        </option>`;
+
+    });
+
+    rivers.forEach(x=>{
+
+        r.innerHTML+=
+        `<option value="${x}">
+        ${x}
+        </option>`;
+
+    });
+
+}
+async function fetchUpdatedData(){
+    const btn = document.querySelector(".updated_data")
+    btn.disabled = true;
+
+    btn.innerText = "Fetching...";
+
+    try{
+        const response = await fetch("api/fetch-now",{method:"POST"})
+        const result = await response.json();
+        console.log(result);
+        alert(result.message);
+        if(result.success){
+            await loadData()
+        }
+    }
+     catch(err){
+
+        alert("Manual Refresh Failed");
+
+        console.error(err);
+    }
+    finally{
+
+        btn.disabled = false;
+
+        btn.innerText =
+        "Fetch Updated Data";
+    }
+}
+
+
+
+/* =========================
+   FILTER TABLE
+========================= */
+function districtChanged(){
+
+    let district =
+    document.getElementById("districtFilter").value;
+
+    let riverDropdown =
+    document.getElementById("riverFilter");
+
+    let rivers = [
+        ...new Set(
+            globalData
+            .filter(x =>
+                district === "" ||
+                x.district_name === district
+            )
+            .map(x => x.river_name)
+        )
+    ];
+
+    riverDropdown.innerHTML =
+    '<option value="">--All River--</option>';
+
+    rivers.forEach(r => {
+
+        riverDropdown.innerHTML +=
+        `<option value="${r}">${r}</option>`;
+    });
+
+    riverDropdown.value = "";
+
+    filterTable();
+}
+function filterTable(){
+
+    let district =
+    document.getElementById("districtFilter").value;
+
+    let river =
+    document.getElementById("riverFilter").value;
+
+    let filtered = globalData.filter(row => {
+
+        return (
+            (district === "" ||
+             row.district_name === district)
+
+            &&
+
+            (river === "" ||
+             row.river_name === river)
+        );
+
+    });
+
+    renderTable(filtered);
+}
+
+/* =========================
+   RENDER TABLE
+========================= */
+
+function renderTable(data){
+
+    let grouped = {};
+
+    data.forEach(row => {
+
+        if(!grouped[row.river_name]){
+            grouped[row.river_name] = [];
+        }
+
+        grouped[row.river_name].push(row);
+
+    });
+
+    let html = "";
+    let sr = 1;
+
+    Object.keys(grouped).forEach(river => {
+
+        let districts = grouped[river];
+
+        districts.forEach((row,index) => {
+
+            html += "<tr>";
+
+            if(index === 0){
+
+                html += `
+                <td rowspan="${districts.length}">
+                    ${sr}
+                </td>
+
+                <td rowspan="${districts.length}">
+                    ${river}
+                </td>
+                `;
+            }
+
+            html += `
+
+                <td>${row.district_name}</td>
+
+                <td>${row.total_drains}</td>
+
+                <td>${row.total_discharge}</td>
+
+                <td>${row.tapped_drains ?? 0}</td>
+
+                <td>${row.tapped_discharge ?? 0}</td>
+
+                <td>${row.untapped_drains ?? 0}</td>
+
+                <td>${row.untapped_discharge ?? 0}</td>
+
+                <td>${row.partial_tapped_drains ?? 0}</td>
+
+                <td>${row.partial_tapped_discharge ?? 0}</td>
+
+                <td>${row.not_to_be_tapped_drains ?? 0}</td>
+
+                <td>${row.not_to_be_tapped_discharge ?? 0}</td>
+
+            `;
+
+            html += "</tr>";
+
+        });
+
+        sr++;
+
+    });
+
+    document.getElementById("tableBody").innerHTML = html;
+}
+
+/* =========================
+   AUTO REFRESH
+========================= */
+
+loadData();
+
+
+
+</script>
+
+</body>
+</html>
